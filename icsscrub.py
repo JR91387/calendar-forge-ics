@@ -57,7 +57,7 @@ _OUTPUT_DIR = _APP_DIR / "output"
 _INPUT_DIR.mkdir(exist_ok=True)
 _OUTPUT_DIR.mkdir(exist_ok=True)
 
-_LOGO_PATH = _APP_DIR / "Calendar_Forge_Logo_JR91387_ChatGPT.png"
+_LOGO_PATH = _APP_DIR / "logo.png"
 _SPLASH_MS = 2500
 
 
