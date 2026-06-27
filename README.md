@@ -21,7 +21,11 @@ bash run.sh
 run.bat
 ```
 
+> **Windows note:** Copy the folder to a local path (e.g. `C:\CalendarForge\`) before running. Windows blocks `.bat` execution directly from network shares (`\\server\...`).
+
 The launcher creates a `.venv` on first run and installs dependencies automatically.
+
+On first launch, `input/` and `output/` folders are created next to the app. Drop your `.ics` files into `input/` — the merged result writes to `output/merged.ics` by default.
 
 ## Files
 

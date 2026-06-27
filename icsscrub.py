@@ -29,10 +29,17 @@ def _read_cal_name(path: Path) -> str:
     return ""
 
 
+_APP_DIR = Path(__file__).parent
+_INPUT_DIR = _APP_DIR / "input"
+_OUTPUT_DIR = _APP_DIR / "output"
+_INPUT_DIR.mkdir(exist_ok=True)
+_OUTPUT_DIR.mkdir(exist_ok=True)
+
+
 class ICScrubApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("ICScrub")
+        self.title("Calendar Forge")
         self.geometry("800x660")
         self.resizable(True, True)
         self._entries: list[dict] = []
@@ -163,7 +170,7 @@ class ICScrubApp(tk.Tk):
         tk.Label(frame, text="Output File:").grid(row=1, column=0, sticky="w", padx=16, pady=6)
         out_row = tk.Frame(frame)
         out_row.grid(row=1, column=1, sticky="w", padx=4)
-        self._output_path = tk.StringVar()
+        self._output_path = tk.StringVar(value=str(_OUTPUT_DIR / "merged.ics"))
         tk.Entry(out_row, textvariable=self._output_path, width=38).pack(side="left")
         tk.Button(out_row, text="Browse…", command=self._browse_output).pack(side="left", padx=4)
 
