@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="01_App/logo.png" alt="Calendar Forge" width="680">
+  <img src="01_App/logo.png" alt="Calendar Forge" width="100%">
 </p>
 
 # Calendar Forge
