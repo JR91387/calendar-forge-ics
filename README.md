@@ -1,5 +1,7 @@
 # Calendar Forge
 
+![Calendar Forge](Calendar_Forge_Logo_JR91387_ChatGPT.png)
+
 Take your old, dispersed calendars from multiple accounts and combine them into a single import-ready `.ics`. Strip attendees, reminders, and vendor clutter so old events don't trigger notifications; rename events with per-file prefixes or postfixes; filter by date range. Your calendars, your way.
 
 ## Requirements
