@@ -97,7 +97,7 @@ class ICScrubApp(tk.Tk):
 
         hdr = tk.Frame(outer, bg="#ddd")
         hdr.pack(fill="x", padx=4)
-        for text, width in [("↕", 4), ("Filename", 28), ("Calendar Name", 18), ("Prefix", 12), ("Postfix", 12)]:
+        for text, width in [("↕", 4), ("Filename", 28), ("Calendar Name", 18), ("Add Before Title", 14), ("Add After Title", 14)]:
             tk.Label(hdr, text=text, anchor="w", width=width, bg="#ddd",
                      font=("", 9, "bold")).pack(side="left", padx=2)
 
@@ -293,9 +293,9 @@ class ICScrubApp(tk.Tk):
             tk.Label(row_frame, text=entry["path"].name, anchor="w", width=28).grid(row=0, column=1, padx=4)
             tk.Label(row_frame, text=entry["cal_name"] or "—", anchor="w",
                      width=18, fg="#555").grid(row=0, column=2)
-            tk.Label(row_frame, text="Prefix:").grid(row=0, column=3, padx=(8, 2))
+            tk.Label(row_frame, text="Before:").grid(row=0, column=3, padx=(8, 2))
             tk.Entry(row_frame, textvariable=entry["prefix"], width=12).grid(row=0, column=4)
-            tk.Label(row_frame, text="Postfix:").grid(row=0, column=5, padx=(8, 2))
+            tk.Label(row_frame, text="After:").grid(row=0, column=5, padx=(8, 2))
             tk.Entry(row_frame, textvariable=entry["postfix"], width=12).grid(row=0, column=6)
             tk.Button(row_frame, text="✕", fg="red", bd=0,
                       command=lambda i=i: self._remove(i)).grid(row=0, column=7, padx=6)

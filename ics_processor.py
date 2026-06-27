@@ -256,7 +256,15 @@ def merge_files(file_configs: list, opts: ProcessingOptions, progress_callback=N
                     continue
 
                 # Normalize early — all comparisons use tz-aware datetime
-                dt_aware = _to_aware(dtstart_prop.dt, user_tz)
+                try:
+                    dt_aware = _to_aware(dtstart_prop.dt, user_tz)
+                except Exception as e:
+                    log.warning(
+                        "%s: event '%s' has unparseable DTSTART (%s), skipping",
+                        path.name, event.get("SUMMARY", "?"), e
+                    )
+                    stats.skipped_no_dtstart += 1
+                    continue
                 ev_date = dt_aware.date()
 
                 if opts.from_date and opts.from_date > ev_date:
