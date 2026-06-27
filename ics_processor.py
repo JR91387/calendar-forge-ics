@@ -98,7 +98,8 @@ def _read_file_chunks(file_path: Path) -> list:
             break
         end = raw.find(b'END:VCALENDAR', idx)
         if end == -1:
-            log.warning("%s: VCALENDAR block missing END tag", file_path.name)
+            log.warning("%s: VCALENDAR block missing END tag — using rest of file", file_path.name)
+            chunks.append(raw[idx:] + b'\r\nEND:VCALENDAR')
             break
         chunks.append(raw[idx:end + len(b'END:VCALENDAR')])
         start = end + len(b'END:VCALENDAR')
