@@ -150,9 +150,9 @@ class ICScrubApp(tk.Tk):
         r = section("Attendees", r)
         self._attendee_mode = tk.StringVar(value="remove_append")
         radio_defs = [
-            ("keep",          "Keep",                  "Preserves all ATTENDEE fields as-is. Use when you want to keep meeting participant info intact."),
-            ("remove",        "Remove",                "Strips all ATTENDEE fields from every event. Clean output with no participant data."),
-            ("remove_append", "Remove + Append",       "Strips ATTENDEE fields but copies a formatted list into the event description. Best of both worlds — clean calendar, reference data preserved."),
+            ("keep",          "Keep",           "Keeps the names and emails of everyone who was invited to each event."),
+            ("remove",        "Remove",         "Removes all names and contact info for invited people from your events."),
+            ("remove_append", "Remove + Append","Removes the invite list but adds it to each event's description, so you can still see who was invited."),
         ]
         for val, name, desc in radio_defs:
             rb = tk.Radiobutton(inner, variable=self._attendee_mode, value=val)
@@ -161,8 +161,8 @@ class ICScrubApp(tk.Tk):
         self._strip_organizer = tk.BooleanVar(value=True)
         cb = tk.Checkbutton(inner, variable=self._strip_organizer)
         r = opt_row(r, cb, "Also Strip Organizer",
-                    "Removes the ORGANIZER field (meeting host) in addition to attendees. "
-                    "Applies only when Remove or Remove + Append is selected.",
+                    "Also removes the name of the person who created or hosted the meeting. "
+                    "Only applies when Remove or Remove + Append is selected above.",
                     indent=36)
 
         # ── Reminders ─────────────────────────────────────────────────────────
@@ -170,14 +170,14 @@ class ICScrubApp(tk.Tk):
         self._strip_alarms = tk.BooleanVar(value=True)
         cb = tk.Checkbutton(inner, variable=self._strip_alarms)
         r = opt_row(r, cb, "Strip Reminders",
-                    "Removes all alert/reminder components from events. "
-                    "Strongly recommended — old reminders will fire on Google Calendar the moment you import if left in.")
+                    "Removes all old alerts and reminders. "
+                    "Highly recommended — if you leave them in, they'll go off in your new calendar right after you import.")
 
         self._append_alarms = tk.BooleanVar(value=False)
         cb = tk.Checkbutton(inner, variable=self._append_alarms)
         r = opt_row(r, cb, "Append Reminder Info to Description",
-                    "When stripping reminders, adds a plain-text summary of the original alerts "
-                    "(e.g. '15 minutes before') to the event description for reference.",
+                    "Saves a quick note inside the event showing when the original reminder was set, "
+                    "so you have a record of it.",
                     indent=36)
 
         # ── Vendor properties ─────────────────────────────────────────────────
@@ -185,17 +185,16 @@ class ICScrubApp(tk.Tk):
         self._strip_x = tk.BooleanVar(value=True)
         cb = tk.Checkbutton(inner, variable=self._strip_x)
         r = opt_row(r, cb, "Strip X-Properties",
-                    "Removes proprietary extension fields added by Apple (X-APPLE-*), "
-                    "Google (X-GOOGLE-*), Microsoft (X-MICROSOFT-*), and others. "
-                    "These fields don't transfer meaningfully between calendar systems and add noise.")
+                    "Removes hidden extra data added by Apple, Google, and Microsoft apps "
+                    "that doesn't carry over to other calendars anyway.")
 
         # ── Cancelled events ──────────────────────────────────────────────────
         r = section("Cancelled Events", r)
         self._excl_cancelled = tk.BooleanVar(value=False)
         cb = tk.Checkbutton(inner, variable=self._excl_cancelled)
         r = opt_row(r, cb, "Exclude Cancelled Events",
-                    "Skips any event with STATUS:CANCELLED. "
-                    "Useful if your source calendars contain declined or withdrawn invites you don't want carried over.")
+                    "Skips events that were cancelled or that you declined — "
+                    "so they don't show up in your new calendar.")
 
         # ── Date range ────────────────────────────────────────────────────────
         r = section("Date Range", r)
@@ -209,7 +208,7 @@ class ICScrubApp(tk.Tk):
         tk.Entry(dr_frame, textvariable=self._to_date, width=12).grid(row=0, column=3, padx=(4, 12))
         tk.Button(dr_frame, text="Include All",
                   command=lambda: (self._from_date.set(""), self._to_date.set(""))).grid(row=0, column=4)
-        tk.Label(dr_frame, text="YYYY-MM-DD  ·  Leave blank to include all dates",
+        tk.Label(dr_frame, text="Enter dates as Year-Month-Day (example: 2023-06-15)  ·  Leave both blank to include all events",
                  fg="#555", font=("", 8)).grid(row=1, column=0, columnspan=5, sticky="w", pady=(2, 0))
         r += 1
 
@@ -234,8 +233,8 @@ class ICScrubApp(tk.Tk):
         self._user_tz.trace_add("write", _filter_tz)
 
         tk.Label(tz_frame,
-                 text="Used to interpret naive (timezone-less) datetimes in your .ics files.\n"
-                      "Defaults to your system timezone. Named zones require Python 3.9+.",
+                 text="Your local time zone is set automatically. "
+                      "This helps make sure old events show up at the right time.",
                  fg="#555", font=("", 8), justify="left").grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
