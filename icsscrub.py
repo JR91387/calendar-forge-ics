@@ -57,18 +57,49 @@ _OUTPUT_DIR = _APP_DIR / "output"
 _INPUT_DIR.mkdir(exist_ok=True)
 _OUTPUT_DIR.mkdir(exist_ok=True)
 
+_LOGO_PATH = _APP_DIR / "Calendar_Forge_Logo_JR91387_ChatGPT.png"
+_SPLASH_MS = 2500
+
+
+# ── splash ────────────────────────────────────────────────────────────────────
+
+def _show_splash(root: tk.Tk) -> None:
+    if not _LOGO_PATH.exists():
+        return
+
+    splash = tk.Toplevel(root)
+    splash.overrideredirect(True)
+    splash.configure(bg="#111111")
+
+    img = tk.PhotoImage(file=str(_LOGO_PATH)).subsample(3, 3)
+    splash._img_ref = img   # prevent GC
+
+    tk.Label(splash, image=img, bg="#111111", bd=0).pack(pady=(24, 8))
+    tk.Label(splash, text="Calendar Forge", font=("", 14, "bold"),
+             fg="#cccccc", bg="#111111").pack(pady=(0, 20))
+
+    splash.update_idletasks()
+    w, h = splash.winfo_width(), splash.winfo_height()
+    sw, sh = splash.winfo_screenwidth(), splash.winfo_screenheight()
+    splash.geometry(f"+{(sw - w) // 2}+{(sh - h) // 2}")
+
+    root.after(_SPLASH_MS, splash.destroy)
+    root.after(_SPLASH_MS, root.deiconify)
+
 
 # ── app ───────────────────────────────────────────────────────────────────────
 
 class ICScrubApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.withdraw()
         self.title("Calendar Forge")
         self.geometry("860x700")
         self.resizable(True, True)
         self._entries: list[dict] = []
         self._build_ui()
         self._load_input_defaults()
+        _show_splash(self)
 
     def _load_input_defaults(self):
         for p in sorted(_INPUT_DIR.glob("*.ics")):
