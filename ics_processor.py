@@ -1,10 +1,13 @@
 import re
+import sys
 import copy
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+sys.path.insert(0, str(Path(__file__).parent / "lib"))
 
 from icalendar import Calendar, Event, vText
 

@@ -2,17 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV="$SCRIPT_DIR/.venv"
 
-# Find a Python >= 3.8
 find_python() {
     for cmd in python3 python; do
         if command -v "$cmd" &>/dev/null; then
             version=$("$cmd" -c "import sys; print(sys.version_info >= (3,8))" 2>/dev/null)
-            if [ "$version" = "True" ]; then
-                echo "$cmd"
-                return 0
-            fi
+            [ "$version" = "True" ] && echo "$cmd" && return 0
         fi
     done
     return 1
@@ -24,11 +19,4 @@ PYTHON=$(find_python) || {
     exit 1
 }
 
-# Create venv once
-if [ ! -d "$VENV" ]; then
-    echo "Creating virtual environment..."
-    "$PYTHON" -m venv "$VENV"
-    "$VENV/bin/pip" install --quiet -r "$SCRIPT_DIR/requirements.txt"
-fi
-
-exec "$VENV/bin/python" "$SCRIPT_DIR/icsscrub.py"
+exec "$PYTHON" "$SCRIPT_DIR/icsscrub.py"

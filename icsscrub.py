@@ -1,10 +1,13 @@
 import os
+import sys
 import threading
 import time
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from datetime import date
+
+sys.path.insert(0, str(Path(__file__).parent / "lib"))
 
 from ics_processor import ProcessingOptions, merge_files, _get_tz
 

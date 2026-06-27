@@ -2,9 +2,8 @@
 setlocal
 
 set SCRIPT_DIR=%~dp0
-set VENV=%SCRIPT_DIR%.venv
 
-:: Find Python >= 3.8  (try Windows py launcher first, then python3, then python)
+:: Find Python >= 3.8
 set PYTHON=
 for %%C in (py python3 python) do (
     if not defined PYTHON (
@@ -23,11 +22,9 @@ if not defined PYTHON (
     exit /b 1
 )
 
-:: Create venv once
-if not exist "%VENV%\Scripts\python.exe" (
-    echo Creating virtual environment...
-    %PYTHON% -m venv "%VENV%"
-    "%VENV%\Scripts\pip" install --quiet -r "%SCRIPT_DIR%requirements.txt"
+"%PYTHON%" "%SCRIPT_DIR%icsscrub.py"
+if errorlevel 1 (
+    echo.
+    echo ERROR: Calendar Forge exited with an error. See above.
+    pause
 )
-
-"%VENV%\Scripts\python" "%SCRIPT_DIR%icsscrub.py"
