@@ -255,11 +255,19 @@ class ICScrubApp(tk.Tk):
         tk.Entry(out_row, textvariable=self._output_path, width=38).pack(side="left")
         tk.Button(out_row, text="Browse…", command=self._browse_output).pack(side="left", padx=4)
 
+        btn_row = tk.Frame(frame)
+        btn_row.grid(row=2, column=0, columnspan=2, pady=12)
         self._gen_btn = tk.Button(
-            frame, text="  Generate  ", command=self._generate,
-            bg="#1976D2", fg="white", font=("", 11, "bold"), padx=12, pady=6,
+            btn_row, text="Generate", command=lambda: self._generate(stop_on_error=True),
+            bg="#1976D2", fg="white", font=("", 11, "bold"), padx=14, pady=6,
         )
-        self._gen_btn.grid(row=2, column=0, columnspan=2, pady=12)
+        self._gen_btn.pack(side="left", padx=(0, 6))
+        self._gen_btn_all = tk.Button(
+            btn_row, text="Generate (collect all errors)",
+            command=lambda: self._generate(stop_on_error=False),
+            bg="#555", fg="white", font=("", 9), padx=10, pady=6,
+        )
+        self._gen_btn_all.pack(side="left")
 
         self._progress_bar = ttk.Progressbar(frame, mode="determinate", length=500)
         self._progress_bar.grid(row=3, column=0, columnspan=2, padx=16, pady=(0, 2), sticky="ew")
@@ -348,7 +356,7 @@ class ICScrubApp(tk.Tk):
 
     # ── generate (threaded) ───────────────────────────────────────────────────
 
-    def _generate(self):
+    def _generate(self, stop_on_error: bool = True):
         if not self._entries:
             messagebox.showerror("No files", "Add at least one .ics file.")
             return
@@ -396,7 +404,8 @@ class ICScrubApp(tk.Tk):
                 state["count"] = count
                 state["file"] = fname
             try:
-                cal, stats = merge_files(file_configs, opts, progress_callback=progress_cb)
+                cal, stats = merge_files(file_configs, opts, progress_callback=progress_cb,
+                                         stop_on_error=stop_on_error)
                 out = Path(out_path)
                 tmp = out.with_suffix(".icsscrub.tmp")
                 try:
@@ -412,6 +421,7 @@ class ICScrubApp(tk.Tk):
                 state["done"] = True
 
         self._gen_btn.config(state="disabled", text="Working…")
+        self._gen_btn_all.config(state="disabled")
         self._progress_bar.config(mode="indeterminate")
         self._progress_bar.start(10)
         self._progress_label.config(text="Starting…", fg="#444")
@@ -432,7 +442,8 @@ class ICScrubApp(tk.Tk):
                 self._progress_bar.stop()
                 self._progress_bar.config(mode="determinate")
                 self._progress_bar["value"] = 100
-                self._gen_btn.config(state="normal", text="  Generate  ")
+                self._gen_btn.config(state="normal", text="Generate")
+                self._gen_btn_all.config(state="normal")
                 if state["error"]:
                     self._progress_label.config(fg="red")
                     self._log(f"ERROR: {state['error']}", error=True)
@@ -449,7 +460,10 @@ class ICScrubApp(tk.Tk):
         lines = [f"✓  Written: {out_path}  ({elapsed:.1f}s)\n",
                  f"{'File':<34} {'Events':>7}", "-" * 43]
         for name, count in stats.per_file.items():
-            lines.append(f"{name:<34} {count:>7}")
+            if name in stats.file_errors:
+                lines.append(f"{name:<34} {'ERROR':>7}")
+            else:
+                lines.append(f"{name:<34} {count:>7}")
         lines += ["-" * 43, f"{'Total events in output':<34} {total:>7}"]
         if stats.duplicates_removed:
             lines.append(f"{'Duplicates removed':<34} {stats.duplicates_removed:>7}")
@@ -459,6 +473,10 @@ class ICScrubApp(tk.Tk):
             lines.append(f"{'Date-filtered':<34} {stats.date_filtered:>7}")
         if stats.cancelled_excluded:
             lines.append(f"{'Cancelled excluded':<34} {stats.cancelled_excluded:>7}")
+        if stats.file_errors:
+            lines.append(f"\n{'─'*43}\nFiles with errors ({len(stats.file_errors)} skipped):")
+            for fname, msg in stats.file_errors.items():
+                lines.append(f"  {fname}: {msg}")
         self._log("\n".join(lines))
 
     def _log(self, text: str, error: bool = False):

@@ -50,6 +50,7 @@ class MergeStats:
     skipped_no_dtstart: int = 0
     date_filtered: int = 0
     cancelled_excluded: int = 0
+    file_errors: dict = field(default_factory=dict)   # filename -> error message
 
 
 # ── timezone helpers ─────────────────────────────────────────────────────────
@@ -200,12 +201,13 @@ def transform_event(event: Event, prefix: str, postfix: str, opts: ProcessingOpt
 
 # ── merge pipeline ────────────────────────────────────────────────────────────
 
-def merge_files(file_configs: list, opts: ProcessingOptions, progress_callback=None) -> tuple:
+def merge_files(file_configs: list, opts: ProcessingOptions,
+                progress_callback=None, stop_on_error: bool = True) -> tuple:
     """
     file_configs: [{"path": Path, "prefix": str, "postfix": str}, ...]
     progress_callback(filename: str, total_examined: int) — called per event examined.
+    stop_on_error: True = raise on first file error; False = collect errors and continue.
     Returns (Calendar, MergeStats). First-file-wins on duplicate (UID, RECURRENCE-ID).
-    Raises on file read/parse failure — callers must not swallow.
     """
     user_tz = _get_tz(opts.user_tz_name)
     stats = MergeStats()
@@ -221,8 +223,16 @@ def merge_files(file_configs: list, opts: ProcessingOptions, progress_callback=N
         postfix = fc.get("postfix", "")
         file_count = 0
 
-        chunks = _read_file_chunks(path)
-        calendars = _parse_chunks(chunks, path.name)
+        try:
+            chunks = _read_file_chunks(path)
+            calendars = _parse_chunks(chunks, path.name)
+        except Exception as e:
+            if stop_on_error:
+                raise
+            log.warning("Skipping %s: %s", path.name, e)
+            stats.file_errors[path.name] = str(e)
+            stats.per_file[path.name] = 0
+            continue
 
         for cal in calendars:
             # Collect VTIMEZONE components; warn on conflicting definitions
