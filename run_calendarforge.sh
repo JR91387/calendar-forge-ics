@@ -19,4 +19,4 @@ PYTHON=$(find_python) || {
     exit 1
 }
 
-exec "$PYTHON" "$SCRIPT_DIR/03_App/icsscrub.py"
+exec "$PYTHON" "$SCRIPT_DIR/01_App/icsscrub.py"

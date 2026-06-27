@@ -53,8 +53,8 @@ def _read_cal_name(path: Path) -> str:
 
 _APP_DIR  = Path(__file__).parent
 _ROOT_DIR = _APP_DIR.parent
-_INPUT_DIR  = _ROOT_DIR / "01_Input"
-_OUTPUT_DIR = _ROOT_DIR / "02_Output"
+_INPUT_DIR  = _ROOT_DIR / "02_Input"
+_OUTPUT_DIR = _ROOT_DIR / "03_Output"
 _INPUT_DIR.mkdir(exist_ok=True)
 _OUTPUT_DIR.mkdir(exist_ok=True)
 

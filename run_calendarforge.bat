@@ -22,7 +22,7 @@ if not defined PYTHON (
     exit /b 1
 )
 
-"%PYTHON%" "%SCRIPT_DIR%03_App\icsscrub.py"
+"%PYTHON%" "%SCRIPT_DIR%01_App\icsscrub.py"
 if errorlevel 1 (
     echo.
     echo ERROR: Calendar Forge exited with an error. See above.
