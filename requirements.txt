@@ -1,2 +1,0 @@
-icalendar>=5.0
-tzdata
