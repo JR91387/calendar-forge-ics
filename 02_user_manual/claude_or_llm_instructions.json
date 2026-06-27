@@ -1,0 +1,94 @@
+{
+  "project": "Calendar Forge",
+  "purpose": "Portable Python/tkinter GUI that merges, cleans, and relabels .ics calendar files into a single RFC 5545-compliant output. No installer, no internet dependency.",
+
+  "folder_structure": {
+    "01_App/": "All application code. icsscrub.py is the entry point.",
+    "01_App/lib/": "Vendored dependency: icalendar library. Do not modify.",
+    "01_App/logo.png": "Splash screen and README header image.",
+    "02_user_manual/": "This folder. Human and LLM reference docs.",
+    "03_Input/": "User drops .ics source files here. Gitignored except .gitkeep.",
+    "04_Output/": "Merged output written here. Gitignored except .gitkeep.",
+    "run_calendarforge.sh": "Linux/Mac launcher. Probes for Python >= 3.8, launches 01_App/icsscrub.py.",
+    "run_calendarforge.bat": "Windows launcher. Same probe logic."
+  },
+
+  "key_files": {
+    "01_App/icsscrub.py": {
+      "role": "tkinter GUI — 3-tab Notebook: Files, Options, Output.",
+      "constants": {
+        "_APP_DIR": "Path(__file__).parent — always 01_App/",
+        "_ROOT_DIR": "_APP_DIR.parent — repo root",
+        "_INPUT_DIR": "_ROOT_DIR / '03_Input'",
+        "_OUTPUT_DIR": "_ROOT_DIR / '04_Output'"
+      },
+      "splash": "2.5s splash screen on launch using logo.png. root.withdraw() called in __init__, deiconify() fires after splash.",
+      "threading": "generate() runs merge_files() in a daemon thread. UI polls via root.after(150, poll). Never call tkinter from the worker thread.",
+      "generate_modes": "stop_on_error=True (Generate button) vs stop_on_error=False (Generate collect-all button)."
+    },
+    "01_App/ics_processor.py": {
+      "role": "Pure ICS logic — no GUI import. Can be run standalone for self-check.",
+      "key_types": {
+        "ProcessingOptions": "dataclass of all user-configurable settings",
+        "MergeStats": "dataclass returned by merge_files(); tracks per_file counts, duplicates_removed, skipped_no_dtstart, date_filtered, cancelled_excluded, file_errors"
+      },
+      "merge_files_signature": "merge_files(file_configs, opts, progress_callback=None, stop_on_error=True) -> (Calendar, MergeStats)",
+      "file_configs_shape": "[{'path': Path, 'prefix': str, 'postfix': str}, ...]",
+      "dedup_strategy": "First file in list wins on duplicate UID.",
+      "pre1900_handling": "Regex strips pre-1900 and negative-year timestamps from raw bytes before parsing.",
+      "missing_end_tag": "_read_file_chunks() synthesizes END:VCALENDAR if file is truncated.",
+      "dtstart_errors": "Unparseable DTSTART logs a warning and increments skipped_no_dtstart; does not raise."
+    }
+  },
+
+  "vendored_deps": {
+    "icalendar": "Loaded via sys.path.insert(0, str(_APP_DIR / 'lib')) at top of icsscrub.py. Do not add pip or requirements.txt installs for runtime deps — vendor into lib/ instead.",
+    "zoneinfo": "stdlib (Python 3.9+). Imported with fallback to UTC list for Python 3.8."
+  },
+
+  "design_rules": [
+    "YAGNI — build only what is requested. No speculative features.",
+    "No runtime pip install. All dependencies must be in 01_App/lib/ or stdlib.",
+    "Never import tkinter from ics_processor.py — keep logic and GUI fully separated.",
+    "Atomic output write: write to .icsscrub.tmp then os.replace() to final path.",
+    "Input/output directories are always relative to repo root (_ROOT_DIR), not app dir.",
+    "Logo path is relative to _APP_DIR (01_App/logo.png), not root.",
+    "Splash requires splash._img_ref = img to prevent tkinter PhotoImage GC."
+  ],
+
+  "options_model": {
+    "attendee_mode": "'keep' | 'remove' | 'remove_append'",
+    "strip_organizer": "bool — only applied when attendee_mode != 'keep'",
+    "strip_alarms": "bool — strips VALARM subcomponents",
+    "append_alarms": "bool — saves original reminder timing in DESCRIPTION",
+    "strip_x_props": "bool — strips all X-* properties",
+    "exclude_cancelled": "bool — skips STATUS:CANCELLED events",
+    "from_date": "datetime.date or None",
+    "to_date": "datetime.date or None",
+    "calendar_name": "str — written as X-WR-CALNAME in output",
+    "user_tz_name": "IANA timezone string, e.g. 'America/Chicago'"
+  },
+
+  "ui_conventions": {
+    "Files_tab_columns": ["↕ (reorder)", "Filename", "Calendar Name", "Add Before Title", "Add After Title"],
+    "row_labels": ["Before:", "After:"],
+    "generate_buttons": {
+      "Generate": "stop_on_error=True — halts at first bad file",
+      "Generate (collect all errors)": "stop_on_error=False — skips bad files, reports all at end"
+    },
+    "options_descriptions": "Plain language, no jargon. Describe the user-facing consequence, not the ICS field name."
+  },
+
+  "git_notes": {
+    "gitignore": "03_Input/* and 04_Output/* are ignored. .gitkeep files hold the directories.",
+    "github_remote": "Public repo. Treat pushes as public-facing — confirm with the repo owner before pushing.",
+    "deploy_key": "If a deploy key is configured, treat it as production credentials."
+  },
+
+  "common_pitfalls": [
+    "Changing _INPUT_DIR/_OUTPUT_DIR: must also update .gitignore to match folder names.",
+    "Moving logo.png out of 01_App/ breaks splash screen — _LOGO_PATH is _APP_DIR / 'logo.png'.",
+    "Adding a new top-level folder for input/output: update both icsscrub.py constants and .gitignore.",
+    "Editing 03_Input or 04_Output folder names: grep the whole repo — at minimum icsscrub.py and .gitignore."
+  ]
+}

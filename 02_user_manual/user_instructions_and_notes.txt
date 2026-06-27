@@ -1,0 +1,117 @@
+CALENDAR FORGE — USER GUIDE
+===========================
+
+WHAT IT DOES
+------------
+Calendar Forge takes one or more .ics files (exported from Google Calendar, Outlook,
+Apple Calendar, etc.) and merges them into a single clean .ics you can import anywhere.
+
+It lets you:
+  - Strip attendees and reminders so old events don't flood your new calendar
+  - Add a label before or after every event name (e.g. "[Work]" or "(old)")
+  - Filter events to a specific date range
+  - Deduplicate events that appear in multiple source files
+  - Remove vendor-specific junk that doesn't transfer between calendar apps
+
+
+GETTING STARTED
+---------------
+Windows:
+  1. Copy the entire folder to a local path, e.g. C:\CalendarForge\
+     (Windows blocks .bat files run directly from network shares)
+  2. Double-click run_calendarforge.bat
+  3. If Windows warns about an unknown publisher, click "More info" > "Run anyway"
+
+Linux / Mac:
+  1. Open a terminal in this folder
+  2. Run:  bash run_calendarforge.sh
+  3. Python 3.8+ must be installed. On Ubuntu: sudo apt install python3 python3-tk
+
+
+STEP BY STEP
+------------
+1. DROP FILES IN
+   Copy your .ics files into the 03_Input/ folder.
+   They will auto-load when the app launches.
+   You can also use Add File(s) or Add Folder inside the app.
+
+2. SET ORDER & LABELS (Files tab)
+   - Files higher in the list win when two files have the same event.
+   - Use the ▲ / ▼ buttons to reorder.
+   - "Add Before Title" / "Add After Title" puts a label on every event from that file.
+     Example: type "[Personal]" in "Add Before Title" to get "[Personal] Dentist Appt"
+
+3. CHOOSE OPTIONS (Options tab)
+   Attendees:
+     - Keep — leave all invite lists intact
+     - Remove — strip all attendees (names/emails)
+     - Remove + Append — strip attendees but save the list in the event description
+
+   Also Strip Organizer:
+     - Removes the meeting host name too (only applies when Remove or Remove+Append is on)
+
+   Strip Reminders (recommended ON):
+     - Removes all alerts. If left on, every old event will fire a notification the
+       moment you import the file.
+
+   Append Reminder Info:
+     - Saves the original reminder timing in the event description as a note
+
+   Strip X-Properties:
+     - Removes hidden app-specific data (X-APPLE-*, X-GOOGLE-*, X-MS-OLK-*, etc.)
+     - Safe to leave on; this data does not transfer between calendar apps anyway
+
+   Exclude Cancelled Events:
+     - Skips events marked STATUS:CANCELLED or that you declined
+
+   Date Range:
+     - Leave blank to include all events
+     - Enter dates as YYYY-MM-DD, e.g. 2020-01-01 to 2024-12-31
+     - Click "Include All" to clear the filter
+
+   Timezone:
+     - Defaults to your system timezone
+     - Affects how floating-time events (events with no timezone) are interpreted
+
+4. GENERATE (Output tab)
+   - Set a name for the merged calendar (shown in calendar apps)
+   - The output file defaults to 04_Output/merged.ics
+   - Click Generate — stops at first error
+   - Click Generate (collect all errors) — skips bad files and lists all errors at the end
+
+5. IMPORT THE RESULT
+   The output file is standard RFC 5545 .ics.
+   - Google Calendar: Settings > Import & Export > Import
+   - Apple Calendar: File > Import
+   - Outlook: File > Open & Export > Import/Export > Import an iCalendar file
+
+
+TIPS
+----
+- Run against a small date range first to spot-check the output before importing everything
+- If an event fires a reminder immediately after import, the .ics still has VALARM blocks —
+  re-run with Strip Reminders enabled
+- If you see duplicate events in your calendar app, the source files had overlapping UIDs;
+  use the file order to control which copy wins
+- Recurring event series are preserved as-is; Calendar Forge does not expand them
+
+
+TROUBLESHOOTING
+---------------
+"Python not found"
+  Install Python 3.8 or later from https://www.python.org/downloads/
+  Ubuntu/Debian: sudo apt install python3 python3-tk
+
+"No module named tkinter"
+  Ubuntu/Debian: sudo apt install python3-tk
+
+App launches but input folder is empty
+  Drop .ics files into 03_Input/ and relaunch, or use Add File(s) inside the app
+
+Output file is empty / 0 events
+  Check the date range filter — it may be excluding everything
+  Check that your source files are valid .ics (open one in a text editor and confirm it
+  starts with BEGIN:VCALENDAR)
+
+Event names look wrong after import
+  The prefix/postfix fields are per-file — check the Files tab entries
