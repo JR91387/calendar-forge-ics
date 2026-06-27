@@ -3,8 +3,8 @@ __pycache__/
 *.icsscrub.tmp
 lib/bin/
 lib/__pycache__/
-input/*
-!input/.gitkeep
-output/*
-!output/.gitkeep
+01_Input/*
+!01_Input/.gitkeep
+02_Output/*
+!02_Output/.gitkeep
 .venv/
