@@ -11,6 +11,25 @@ sys.path.insert(0, str(Path(__file__).parent / "lib"))
 
 from ics_processor import ProcessingOptions, merge_files, _get_tz
 
+# ── timezone list (from bundled tzdata / zoneinfo) ───────────────────────────
+
+try:
+    from zoneinfo import available_timezones
+    _TZ_LIST = sorted(available_timezones())
+except ImportError:
+    _TZ_LIST = ["UTC"]
+
+def _system_tz() -> str:
+    try:
+        import datetime
+        tz = datetime.datetime.now().astimezone().tzinfo
+        if hasattr(tz, "key"):      # zoneinfo.ZoneInfo on Python 3.9+
+            return tz.key
+    except Exception:
+        pass
+    return "UTC"
+
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 def _parse_date(s: str):
     s = s.strip()
@@ -39,14 +58,21 @@ _INPUT_DIR.mkdir(exist_ok=True)
 _OUTPUT_DIR.mkdir(exist_ok=True)
 
 
+# ── app ───────────────────────────────────────────────────────────────────────
+
 class ICScrubApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Calendar Forge")
-        self.geometry("800x660")
+        self.geometry("860x700")
         self.resizable(True, True)
         self._entries: list[dict] = []
         self._build_ui()
+        self._load_input_defaults()
+
+    def _load_input_defaults(self):
+        for p in sorted(_INPUT_DIR.glob("*.ics")):
+            self._add_path(p)
 
     # ── build ────────────────────────────────────────────────────────────────
 
@@ -56,6 +82,8 @@ class ICScrubApp(tk.Tk):
         self._tab_files(nb)
         self._tab_options(nb)
         self._tab_output(nb)
+
+    # ── Files tab ─────────────────────────────────────────────────────────────
 
     def _tab_files(self, nb):
         outer = tk.Frame(nb)
@@ -76,91 +104,142 @@ class ICScrubApp(tk.Tk):
         self._list_frame = tk.Frame(outer)
         self._list_frame.pack(fill="both", expand=True, padx=4)
 
-        tk.Label(outer, text="Files higher in the list win on duplicate UIDs.",
-                 fg="#666", font=("", 8)).pack(anchor="w", padx=6)
+        tk.Label(outer, text="Files higher in the list win on duplicate UIDs. Drop .ics files into the input/ folder to auto-load on launch.",
+                 fg="#666", font=("", 8)).pack(anchor="w", padx=6, pady=2)
+
+    # ── Options tab ───────────────────────────────────────────────────────────
 
     def _tab_options(self, nb):
-        frame = tk.Frame(nb)
-        nb.add(frame, text="Options")
+        outer = tk.Frame(nb)
+        nb.add(outer, text="Options")
+
+        # Scrollable inner frame
+        canvas = tk.Canvas(outer, borderwidth=0, highlightthickness=0)
+        vsb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        inner = tk.Frame(canvas)
+        inner.bind("<Configure>",
+                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        canvas.bind_all("<MouseWheel>",
+                        lambda e: canvas.yview_scroll(-(e.delta // 120), "units"))
+
         r = 0
 
-        def section(text, row):
-            tk.Label(frame, text=text, font=("", 10, "bold")).grid(
-                row=row, column=0, sticky="w", padx=16, pady=(10, 2))
+        def section(label, row):
+            tk.Label(inner, text=label, font=("", 10, "bold"), anchor="w").grid(
+                row=row, column=0, columnspan=3, sticky="w", padx=12, pady=(14, 2))
+            ttk.Separator(inner, orient="horizontal").grid(
+                row=row + 1, column=0, columnspan=3, sticky="ew", padx=12, pady=(0, 6))
+            return row + 2
+
+        def opt_row(row, widget, name, desc, indent=20):
+            widget.grid(row=row, column=0, sticky="nw", padx=(indent, 4), pady=3)
+            tk.Label(inner, text=name, font=("", 9, "bold"), anchor="nw").grid(
+                row=row, column=1, sticky="nw", padx=(0, 8), pady=3)
+            tk.Label(inner, text=desc, fg="#555", font=("", 8), anchor="nw",
+                     wraplength=340, justify="left").grid(
+                row=row, column=2, sticky="nw", padx=4, pady=3)
             return row + 1
 
-        def sep(row):
-            ttk.Separator(frame, orient="horizontal").grid(
-                row=row, column=0, columnspan=2, sticky="ew", padx=16, pady=4)
-            return row + 1
+        inner.columnconfigure(2, weight=1)
 
-        def opt(text, var, row, indent=32):
-            tk.Checkbutton(frame, text=text, variable=var).grid(
-                row=row, column=0, sticky="w", padx=indent)
-            return row + 1
-
-        # Attendees
+        # ── Attendees ─────────────────────────────────────────────────────────
         r = section("Attendees", r)
         self._attendee_mode = tk.StringVar(value="remove_append")
-        for label, val in [("Keep", "keep"), ("Remove", "remove"),
-                            ("Remove + Append to Description", "remove_append")]:
-            tk.Radiobutton(frame, text=label, variable=self._attendee_mode,
-                           value=val).grid(row=r, column=0, sticky="w", padx=32)
-            r += 1
+        radio_defs = [
+            ("keep",          "Keep",                  "Preserves all ATTENDEE fields as-is. Use when you want to keep meeting participant info intact."),
+            ("remove",        "Remove",                "Strips all ATTENDEE fields from every event. Clean output with no participant data."),
+            ("remove_append", "Remove + Append",       "Strips ATTENDEE fields but copies a formatted list into the event description. Best of both worlds — clean calendar, reference data preserved."),
+        ]
+        for val, name, desc in radio_defs:
+            rb = tk.Radiobutton(inner, variable=self._attendee_mode, value=val)
+            r = opt_row(r, rb, name, desc)
+
         self._strip_organizer = tk.BooleanVar(value=True)
-        r = opt("Also strip Organizer field", self._strip_organizer, r, indent=48)
+        cb = tk.Checkbutton(inner, variable=self._strip_organizer)
+        r = opt_row(r, cb, "Also Strip Organizer",
+                    "Removes the ORGANIZER field (meeting host) in addition to attendees. "
+                    "Applies only when Remove or Remove + Append is selected.",
+                    indent=36)
 
-        r = sep(r)
-
-        # Reminders
+        # ── Reminders ─────────────────────────────────────────────────────────
         r = section("Reminders (VALARM)", r)
         self._strip_alarms = tk.BooleanVar(value=True)
-        r = opt("Strip reminders  ⚠ old alarms will fire on Google Calendar import if kept",
-                self._strip_alarms, r)
+        cb = tk.Checkbutton(inner, variable=self._strip_alarms)
+        r = opt_row(r, cb, "Strip Reminders",
+                    "Removes all alert/reminder components from events. "
+                    "Strongly recommended — old reminders will fire on Google Calendar the moment you import if left in.")
+
         self._append_alarms = tk.BooleanVar(value=False)
-        r = opt("Append reminder details to description", self._append_alarms, r, indent=48)
+        cb = tk.Checkbutton(inner, variable=self._append_alarms)
+        r = opt_row(r, cb, "Append Reminder Info to Description",
+                    "When stripping reminders, adds a plain-text summary of the original alerts "
+                    "(e.g. '15 minutes before') to the event description for reference.",
+                    indent=36)
 
-        r = sep(r)
-
-        # Other
-        r = section("Other", r)
+        # ── Vendor properties ─────────────────────────────────────────────────
+        r = section("Vendor Properties", r)
         self._strip_x = tk.BooleanVar(value=True)
-        r = opt("Strip vendor X-properties  (X-APPLE-*, X-GOOGLE-*, X-MICROSOFT-*, …)",
-                self._strip_x, r)
+        cb = tk.Checkbutton(inner, variable=self._strip_x)
+        r = opt_row(r, cb, "Strip X-Properties",
+                    "Removes proprietary extension fields added by Apple (X-APPLE-*), "
+                    "Google (X-GOOGLE-*), Microsoft (X-MICROSOFT-*), and others. "
+                    "These fields don't transfer meaningfully between calendar systems and add noise.")
+
+        # ── Cancelled events ──────────────────────────────────────────────────
+        r = section("Cancelled Events", r)
         self._excl_cancelled = tk.BooleanVar(value=False)
-        r = opt("Exclude STATUS:CANCELLED events", self._excl_cancelled, r)
+        cb = tk.Checkbutton(inner, variable=self._excl_cancelled)
+        r = opt_row(r, cb, "Exclude Cancelled Events",
+                    "Skips any event with STATUS:CANCELLED. "
+                    "Useful if your source calendars contain declined or withdrawn invites you don't want carried over.")
 
-        r = sep(r)
-
-        # Date range
-        r = section("Date Range  (YYYY-MM-DD, leave blank = include all)", r)
-        dr = tk.Frame(frame)
-        dr.grid(row=r, column=0, sticky="w", padx=32)
-        tk.Label(dr, text="From:").pack(side="left")
+        # ── Date range ────────────────────────────────────────────────────────
+        r = section("Date Range", r)
+        dr_frame = tk.Frame(inner)
+        dr_frame.grid(row=r, column=0, columnspan=3, sticky="w", padx=20, pady=4)
+        tk.Label(dr_frame, text="From:", font=("", 9, "bold")).grid(row=0, column=0, sticky="w")
         self._from_date = tk.StringVar()
-        tk.Entry(dr, textvariable=self._from_date, width=12).pack(side="left", padx=4)
-        tk.Label(dr, text="To:").pack(side="left", padx=(10, 0))
+        tk.Entry(dr_frame, textvariable=self._from_date, width=12).grid(row=0, column=1, padx=(4, 12))
+        tk.Label(dr_frame, text="To:", font=("", 9, "bold")).grid(row=0, column=2, sticky="w")
         self._to_date = tk.StringVar()
-        tk.Entry(dr, textvariable=self._to_date, width=12).pack(side="left", padx=4)
-        tk.Button(dr, text="Include All",
-                  command=lambda: (self._from_date.set(""), self._to_date.set(""))).pack(side="left", padx=8)
+        tk.Entry(dr_frame, textvariable=self._to_date, width=12).grid(row=0, column=3, padx=(4, 12))
+        tk.Button(dr_frame, text="Include All",
+                  command=lambda: (self._from_date.set(""), self._to_date.set(""))).grid(row=0, column=4)
+        tk.Label(dr_frame, text="YYYY-MM-DD  ·  Leave blank to include all dates",
+                 fg="#555", font=("", 8)).grid(row=1, column=0, columnspan=5, sticky="w", pady=(2, 0))
         r += 1
 
-        r = sep(r)
-
-        # Timezone
+        # ── Timezone ──────────────────────────────────────────────────────────
         r = section("Timezone", r)
-        tz_frame = tk.Frame(frame)
-        tz_frame.grid(row=r, column=0, sticky="w", padx=32)
-        tk.Label(tz_frame, text="Timezone:").pack(side="left")
-        self._user_tz = tk.StringVar(value="UTC")
-        tk.Entry(tz_frame, textvariable=self._user_tz, width=24).pack(side="left", padx=4)
-        tk.Label(tz_frame, text="(IANA name, e.g. America/Chicago)", fg="#666",
-                 font=("", 8)).pack(side="left")
-        r += 1
-        tk.Label(frame,
-                 text="Used to interpret naive datetimes. Named zones require Python 3.9+.",
-                 fg="#666", font=("", 8)).grid(row=r, column=0, sticky="w", padx=48)
+        tz_frame = tk.Frame(inner)
+        tz_frame.grid(row=r, column=0, columnspan=3, sticky="w", padx=20, pady=4)
+
+        tk.Label(tz_frame, text="Timezone:", font=("", 9, "bold")).grid(row=0, column=0, sticky="w")
+
+        self._user_tz = tk.StringVar(value=_system_tz())
+        combo = ttk.Combobox(tz_frame, textvariable=self._user_tz, width=32)
+        combo["values"] = _TZ_LIST
+        combo.grid(row=0, column=1, padx=(6, 0))
+
+        # Live filter as user types
+        def _filter_tz(*_):
+            typed = self._user_tz.get().lower()
+            filtered = [z for z in _TZ_LIST if typed in z.lower()] if typed else _TZ_LIST
+            combo["values"] = filtered[:120]
+
+        self._user_tz.trace_add("write", _filter_tz)
+
+        tk.Label(tz_frame,
+                 text="Used to interpret naive (timezone-less) datetimes in your .ics files.\n"
+                      "Defaults to your system timezone. Named zones require Python 3.9+.",
+                 fg="#555", font=("", 8), justify="left").grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
+
+    # ── Output tab ────────────────────────────────────────────────────────────
 
     def _tab_output(self, nb):
         frame = tk.Frame(nb)
@@ -183,7 +262,6 @@ class ICScrubApp(tk.Tk):
         )
         self._gen_btn.grid(row=2, column=0, columnspan=2, pady=12)
 
-        # Progress bar + label (always visible; indeterminate during processing)
         self._progress_bar = ttk.Progressbar(frame, mode="determinate", length=500)
         self._progress_bar.grid(row=3, column=0, columnspan=2, padx=16, pady=(0, 2), sticky="ew")
 
@@ -250,18 +328,22 @@ class ICScrubApp(tk.Tk):
         self._render_list()
 
     def _add_files(self):
-        for p in filedialog.askopenfilenames(filetypes=[("ICS files", "*.ics"), ("All", "*.*")]):
+        for p in filedialog.askopenfilenames(
+                initialdir=str(_INPUT_DIR),
+                filetypes=[("ICS files", "*.ics"), ("All", "*.*")]):
             self._add_path(Path(p))
 
     def _add_folder(self):
-        folder = filedialog.askdirectory()
+        folder = filedialog.askdirectory(initialdir=str(_INPUT_DIR))
         if folder:
             for p in sorted(Path(folder).glob("*.ics")):
                 self._add_path(p)
 
     def _browse_output(self):
-        p = filedialog.asksaveasfilename(defaultextension=".ics",
-                                          filetypes=[("ICS files", "*.ics")])
+        p = filedialog.asksaveasfilename(
+                initialdir=str(_OUTPUT_DIR),
+                defaultextension=".ics",
+                filetypes=[("ICS files", "*.ics")])
         if p:
             self._output_path.set(p)
 
@@ -285,7 +367,7 @@ class ICScrubApp(tk.Tk):
 
         tz_name = self._user_tz.get().strip() or "UTC"
         try:
-            _get_tz(tz_name)   # validate before handing to thread
+            _get_tz(tz_name)
         except ValueError as e:
             messagebox.showerror("Timezone error", str(e))
             return
@@ -299,7 +381,7 @@ class ICScrubApp(tk.Tk):
             exclude_cancelled=self._excl_cancelled.get(),
             from_date=from_date,
             to_date=to_date,
-            calendar_name=self._cal_name.get().strip() or "ICScrub Export",
+            calendar_name=self._cal_name.get().strip() or "Calendar Forge Export",
             user_tz_name=tz_name,
         )
 
@@ -308,7 +390,6 @@ class ICScrubApp(tk.Tk):
             for e in self._entries
         ]
 
-        # Shared state between worker thread and GUI poll
         state = {"count": 0, "file": "", "done": False, "error": None, "result": None}
 
         def worker():
@@ -317,7 +398,6 @@ class ICScrubApp(tk.Tk):
                 state["file"] = fname
             try:
                 cal, stats = merge_files(file_configs, opts, progress_callback=progress_cb)
-                # Atomic write — temp file in same dir, then replace
                 out = Path(out_path)
                 tmp = out.with_suffix(".icsscrub.tmp")
                 try:
@@ -345,9 +425,8 @@ class ICScrubApp(tk.Tk):
             elapsed = time.monotonic() - t0
             count = state["count"]
             fname = state["file"]
-            label = (
-                f"[{fname[:26]}] " if fname else "Reading…  "
-            ) + f"{count:,} events examined | {elapsed:.1f}s elapsed"
+            label = (f"[{fname[:26]}] " if fname else "Reading…  ") + \
+                    f"{count:,} events examined | {elapsed:.1f}s elapsed"
             self._progress_label.config(text=label)
 
             if state["done"]:
