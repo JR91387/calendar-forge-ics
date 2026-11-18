@@ -34,3 +34,7 @@ bash run_calendarforge.sh
 5. Import `04_Output/merged.ics` into Google Calendar, Outlook, or Apple Calendar
 
 See `02_user_manual/user_instructions_and_notes.txt` for a full walkthrough.
+
+---
+
+**More from Reinitz Industries:** [Job-o-Matic](https://github.com/JR91387/jobomatic-reusme-skills-database) · [Wagtail Kanban Content Calendar](https://github.com/JR91387/wagtail-kanban-content-calendar) · [Preen](https://github.com/JR91387/Preen-AI-email-sorting) · [/bully](https://github.com/JR91387/claude-skill-bully) · [/bruh](https://github.com/JR91387/claude-skill-bruh)
